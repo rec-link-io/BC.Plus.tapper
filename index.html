@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>BCP Runner</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      height: 100%;
+      font-family: 'Orbitron', sans-serif;
+      background: linear-gradient(to bottom, #0f2027, #203a43, #2c5364);
+      
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    #gameContainer {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      max-width: 400px;
+      height: 100%;
+      max-height: 700px;
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      max-width: 360px;
+      max-height: 600px;
+      background: radial-gradient(circle, #1b2735 0%, #090a0f 100%);
+      border: 3px solid #00ffcc;
+      box-shadow: 0 0 30px #00ffcc;
+      border-radius: 15px;
+      touch-action: manipulation;
+    }
+    .hud {
+      position: relative;
+      width: 100%;
+      max-width: 360px;
+      margin: 10px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px;
+      background: rgba(0, 0, 0, 0.7);
+      border-radius: 12px;
+      border: 2px solid #00ffcc;
+      color: #00ffcc;
+      font-size: 16px;
+      z-index: 10;
+      transform: perspective(500px) rotateX(20deg);
+    }
+    .hud div {
+      margin: 0 10px;
+    }
+    #startScreen, #gameOverScreen {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 360px;
+      height: 100%;
+      max-height: 600px;
+      background: rgba(0, 0, 0, 0.9);
+      color: #00ffcc;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      font-size: 2em;
+      z-index: 15;
+    }
+    #levelUpNotification, #lifeLostNotification, #withdrawNotification, #lifeGainedNotification, #coinBonusNotification {
+      position: absolute;
+      top: 20%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 255, 200, 0.9);
+      padding: 15px 30px;
+      border-radius: 10px;
+      border: 2px solid #00ffcc;
+      color: #1a1a2e;
+      font-size: 1.5em;
+      font-weight: bold;
+      display: none;
+      box-shadow: 0 0 20px rgba(0, 255, 200, 0.5);
+      animation: fadeInOut 2s ease-in-out;
+      z-index: 14;
+    }
+    #lifeLostNotification {
+      background: rgba(255, 68, 68, 0.9);
+      border-color: #ff1744;
+      box-shadow: 0 0 20px rgba(255, 68, 68, 0.5);
+    }
+    #withdrawNotification {
+      background: rgba(255, 215, 0, 0.9);
+      border-color: #ffd700;
+      box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+    }
+    #lifeGainedNotification {
+      background: rgba(0, 255, 0, 0.9);
+      border-color: #00ff00;
+      box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+    }
+    #coinBonusNotification {
+      background: rgba(255, 215, 0, 0.9);
+      border-color: #ffd700;
+      box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+    }
+    .btn {
+      padding: 10px 20px;
+      margin: 5px;
+      background: linear-gradient(45deg, #00d4ff, #00ff88);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 1em;
+      cursor: pointer;
+      box-shadow: 0 5px 15px rgba(0, 255, 200, 0.5);
+      font-family: 'Orbitron', sans-serif;
+    }
+    .btn:hover {
+      background: linear-gradient(45deg, #00ff88, #00d4ff);
+      transform: scale(1.1);
+    }
+    .btn:active {
+      transform: scale(0.95);
+    }
+    @keyframes fadeInOut {
+      0% { opacity: 0; transform: translate(-50%, -70%) scale(0.8); }
+      10% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+      90% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+      100% { opacity: 0; transform: translate(-50%, -30%) scale(0.8); }
+    }
+    @media (max-width: 600px) {
+      canvas {
+        max-width: 90vw;
+        max-height: 80vh;
+      }
+      .hud {
+        max-width: 90vw;
+        font-size: 14px;
+        padding: 8px;
+      }
+      #startScreen, #gameOverScreen {
+        max-width: 90vw;
+        max-height: 80vh;
+        font-size: 1.5em;
+      }
+      #levelUpNotification, #lifeLostNotification, #withdrawNotification, #lifeGainedNotification, #coinBonusNotification {
+        font-size: 1.2em;
+        padding: 10px 20px;
+      }
+    }
+    .flash-loader {
+      position: fixed;
+      z-index: 5000;
+      top: 0; left: 0; right: 0; bottom: 0;
+      width: 100vw;
+      height: 100vh;
+      background: #121420;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      transition: opacity 0.7s cubic-bezier(.55,.06,.68,.19);
+      opacity: 1;
+      pointer-events: all;
+    }
+    .flash-loader.hide {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .flash-loader-imgbox {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      min-width: 160px;
+      min-height: 160px;
+    }
+    
+    @keyframes flash-logo-glow {
+      0% {
+        filter: brightness(0.8) blur(0px);
+        box-shadow: 0 0 10px #25ee8833, 0 0 0 2px #25ee88;
+      }
+      40% {
+        filter: brightness(1.2) blur(0.5px);
+        box-shadow: 0 0 24px #25ee88bb, 0 0 0 2px #25ee88;
+      }
+      60% {
+        filter: brightness(1.6) blur(2.5px);
+        box-shadow: 0 0 32px #25ee88f1, 0 0 0 4px #25ee88;
+      }
+      100% {
+        filter: brightness(2) blur(4px);
+        box-shadow: 0 0 56px #25ee88ff, 0 0 0 5px #25ee88;
+      }
+    }
+    .flash-loader-spinner {
+      width: 36px;
+      height: 36px;
+      border: 4.5px solid #fff2;
+      border-top: 4.5px solid #25EE88;
+      border-radius: 50%;
+      animation: spin 0.85s linear infinite;
+      margin: 0 auto 1.3rem auto;
+      opacity: 0.8;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg);}
+    }
+    .flash-loader-text {
+      color: #fff;
+      letter-spacing: .06em;
+      font-weight: 600;
+      font-size: 1.29rem;
+      opacity: 0.92;
+      text-shadow: 0 2px 8px #25EE8880;
+    }
+    @media (max-width: 600px) {
+      .flash-loader-img { width: 85vw; height: 85vw; min-width: 80px; min-height: 80px; max-width: 90vw; max-height: 90vw;}
+      .flash-loader-imgbox { min-width: 90px; min-height: 90px;}
+      .flash-loader-text { font-size: 1.07rem;}
+      .flash-loader-spinner { width: 26px; height: 26px; border-width: 3px;}
+    }
+
+  </style>
+</head>
+<body>
+  <div id="flash-loader" class="flash-loader">
+    <div class="flash-loader-imgbox">
+      <img class="flash-loader-img" src="https://raw.githubusercontent.com/rec-link-io/BC.Plus/7ecc35e2dbc9c4ac5ebb3ea94c10bbb536104b7f/assets/BCPlus%20logo.gif" alt="Loading BC.Plus...">
+    </div>
+    <div class="flash-loader-spinner"></div>
+    <div class="flash-loader-text"></div>
+  </div>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+  <div id="gameContainer">
+    <div class="hud">
+      <div>💎 BCP Wallet: <span id="coinCounter">0</span></div>
+      <div>🎯 Score: <span id="score">0</span></div>
+      <div>🔥 Level: <span id="level">1</span></div>
+      <div>❤️ Lives: <span id="lives">3</span></div>
+      <div>
+        <button class="btn" id="pauseBtn"><i class="fas fa-pause"></i></button>
+        <button class="btn" id="soundBtn"><i class="fas fa-volume-up"></i></button>
+        <button class="btn" id="withdrawBtn"><i class="fas fa-wallet"></i></button>
+      </div>
+    </div>
+    <div id="startScreen">
+      <h1>🎮 BCP Runner</h1>
+      <button class="btn" onclick="startGame()">Start Game</button>
+    </div>
+    <div id="gameOverScreen" style="display:none;">
+      <h1>💀 Game Over</h1>
+      <p>Score: <span id="finalScore">0</span></p>
+      <p>High Score: <span id="highScore">0</span></p>
+      <p>BCP Wallet: <span id="finalWallet">0</span></p>
+      <button class="btn" onclick="restartGame()">Restart</button>
+    </div>
+    <div id="levelUpNotification">Level Up!</div>
+    <div id="lifeLostNotification">Life Lost!</div>
+    <div id="withdrawNotification">BCP Withdraw Coming Soon</div>
+    <div id="lifeGainedNotification">Life Gained!</div>
+    <div id="coinBonusNotification">+200 BCP Coins!</div>
+    <canvas id="gameCanvas" width="360" height="600"></canvas>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const coinCounter = document.getElementById('coinCounter');
+    const scoreDisplay = document.getElementById('score');
+    const levelDisplay = document.getElementById('level');
+    const livesDisplay = document.getElementById('lives');
+    const highScoreDisplay = document.getElementById('highScore');
+    const finalScoreDisplay = document.getElementById('finalScore');
+    const finalWalletDisplay = document.getElementById('finalWallet');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const soundBtn = document.getElementById('soundBtn');
+    const withdrawBtn = document.getElementById('withdrawBtn');
+    const startScreen = document.getElementById('startScreen');
+    const gameOverScreen = document.getElementById('gameOverScreen');
+    const levelUpNotification = document.getElementById('levelUpNotification');
+    const lifeLostNotification = document.getElementById('lifeLostNotification');
+    const withdrawNotification = document.getElementById('withdrawNotification');
+    const lifeGainedNotification = document.getElementById('lifeGainedNotification');
+    const coinBonusNotification = document.getElementById('coinBonusNotification');
+
+    let player = { x: 160, y: 500, width: 40, height: 40, speed: 5, isHit: false, hitEffectDuration: 0 };
+    let coins = [];
+    let livesItems = [];
+    let enemies = [];
+    let bullets = [];
+    let keys = {};
+    let score = 0;
+    let wallet = parseInt(localStorage.getItem('bcpWallet')) || 0;
+    let level = 1;
+    let lives = 3;
+    let enemiesKilled = 0;
+    let paused = false;
+    let highScore = parseInt(localStorage.getItem('highScore')) || 0;
+    let soundOn = true;
+    let animationId;
+    let maxEnemies = 10;
+    let maxBullets = 20;
+
+    const coinImage = new Image();
+    coinImage.src = 'https://cdn-icons-png.flaticon.com/512/825/825527.png';
+    const lifeImage = new Image();
+    lifeImage.src = 'https://cdn-icons-png.flaticon.com/512/2589/2589976.png';
+    const shootSound = new Audio('https://cdn.pixabay.com/audio/2022/03/15/audio_95bca4f8ab.mp3');
+    const coinSound = new Audio('https://cdn.pixabay.com/audio/2022/03/15/audio_c9e5d6b64b.mp3');
+    const lifeSound = new Audio('https://cdn.pixabay.com/audio/2022/03/15/audio_c9e5d6b64b.mp3');
+
+    coinCounter.textContent = wallet;
+    highScoreDisplay.textContent = highScore;
+
+    document.addEventListener('keydown', (e) => keys[e.key] = true);
+    document.addEventListener('keyup', (e) => keys[e.key] = false);
+    canvas.addEventListener('touchmove', handleTouch, { passive: false });
+    pauseBtn.addEventListener('click', togglePause);
+    soundBtn.addEventListener('click', toggleSound);
+    withdrawBtn.addEventListener('click', showWithdrawNotification);
+
+    function startGame() {
+      startScreen.style.display = 'none';
+      resetGame();
+      requestAnimationFrame(update);
+      spawnEnemyWave();
+    }
+
+    function resetGame() {
+      player.x = 160;
+      player.isHit = false;
+      player.hitEffectDuration = 0;
+      coins = [];
+      livesItems = [];
+      enemies = [];
+      bullets = [];
+      score = 0;
+      level = 1;
+      lives = 3;
+      enemiesKilled = 0;
+      paused = false;
+      gameOverScreen.style.display = 'none';
+      levelUpNotification.style.display = 'none';
+      lifeLostNotification.style.display = 'none';
+      withdrawNotification.style.display = 'none';
+      lifeGainedNotification.style.display = 'none';
+      coinBonusNotification.style.display = 'none';
+      updateHUD();
+    }
+
+    function restartGame() {
+      resetGame();
+      requestAnimationFrame(update);
+      spawnEnemyWave();
+    }
+
+    function togglePause() {
+  paused = !paused;
+  pauseBtn.textContent = paused ? '<i class="fas fa-play"></i>' : '<i class="fas fa-pause"></i>';
+  if (!paused && !gameOver) animate(performance.now());
+}
+
+function toggleSound() {
+  soundOn = !soundOn;
+  soundBtn.textContent = soundOn ? '<i class="fas fa-volume-up"></i>' : '<i class="fas fa-volume-mute"></i>';
+}
+
+    function showWithdrawNotification() {
+      withdrawNotification.style.display = 'block';
+      setTimeout(() => {
+        withdrawNotification.style.display = 'none';
+      }, 2000);
+    }
+
+    function handleTouch(e) {
+      e.preventDefault();
+      const touch = e.touches[0];
+      const rect = canvas.getBoundingClientRect();
+      player.x = Math.max(0, Math.min(canvas.width - player.width, touch.clientX - rect.left - player.width / 2));
+    }
+
+    function spawnEnemyWave() {
+      if (paused || gameOverScreen.style.display === 'flex') return;
+      if (enemies.length >= maxEnemies) return;
+
+      const enemiesToSpawn = Math.floor(Math.random() * 4) + 1;
+      const enemiesToSpawnLimited = Math.min(enemiesToSpawn, maxEnemies - enemies.length);
+      for (let i = 0; i < enemiesToSpawnLimited; i++) {
+        enemies.push({ x: Math.random() * (canvas.width - 50), y: -30, size: 30 + Math.random() * 20, speed: 3 });
+      }
+      setTimeout(spawnEnemyWave, Math.random() * 2000 + 1000);
+    }
+
+    function spawnCoin() {
+      if (coins.length >= 5) return;
+      coins.push({ x: Math.random() * (canvas.width - 20), y: -30 });
+    }
+
+    function spawnLife() {
+      if (livesItems.length >= 2) return;
+      livesItems.push({ x: Math.random() * (canvas.width - 20), y: -30 });
+    }
+
+    function shoot() {
+      if (bullets.length >= maxBullets) return;
+      bullets.push({ x: player.x + player.width / 2 - 5, y: player.y, speed: 50 });
+      if (soundOn) {
+        shootSound.currentTime = 0;
+        shootSound.play().catch(() => {});
+      }
+    }
+
+    function showLevelUp() {
+      levelUpNotification.innerText = `Level Up! Level ${level}`;
+      levelUpNotification.style.display = 'block';
+      setTimeout(() => {
+        levelUpNotification.style.display = 'none';
+      }, 2000);
+    }
+
+    function showLifeLost() {
+      lifeLostNotification.innerText = `Life Lost! ${lives} Left`;
+      lifeLostNotification.style.display = 'block';
+      setTimeout(() => {
+        lifeLostNotification.style.display = 'none';
+      }, 2000);
+    }
+
+    function showLifeGained() {
+      lifeGainedNotification.innerText = `Life Gained! ${lives} Lives`;
+      lifeGainedNotification.style.display = 'block';
+      setTimeout(() => {
+        lifeGainedNotification.style.display = 'none';
+      }, 2000);
+    }
+
+    function showCoinBonus() {
+      coinBonusNotification.innerText = `+200 BCP Coins!`;
+      coinBonusNotification.style.display = 'block';
+      setTimeout(() => {
+        coinBonusNotification.style.display = 'none';
+      }, 2000);
+    }
+
+    function update() {
+      if (paused || gameOverScreen.style.display === 'flex') return;
+      animationId = requestAnimationFrame(update);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (player.isHit) {
+        player.hitEffectDuration -= 16.67; // Approx. 60 FPS (1000ms / 60)
+        if (player.hitEffectDuration <= 0) {
+          player.isHit = false;
+        }
+      }
+      updatePlayer();
+      updateBullets();
+      updateEnemies();
+      updateCoins();
+      updateLives();
+      drawPlayer();
+      checkLevelUp();
+    }
+
+    function updatePlayer() {
+      if (keys['ArrowLeft'] && player.x > 0) player.x -= player.speed;
+      if (keys['ArrowRight'] && player.x + player.width < canvas.width) player.x += player.speed;
+    }
+
+    function drawPlayer() {
+      if (player.isHit) {
+        ctx.fillStyle = 'red';
+        ctx.shadowColor = 'red';
+        ctx.shadowBlur = 20;
+      } else {
+        const gradient = ctx.createLinearGradient(player.x, player.y, player.x + player.width, player.y + player.height);
+        gradient.addColorStop(0, '#00d4ff');
+        gradient.addColorStop(1, '#00ff88');
+        ctx.fillStyle = gradient;
+        ctx.shadowColor = '#00ffcc';
+        ctx.shadowBlur = 15;
+      }
+      ctx.beginPath();
+      ctx.moveTo(player.x + player.width / 2, player.y);
+      ctx.lineTo(player.x + player.width, player.y + player.height);
+      ctx.lineTo(player.x, player.y + player.height);
+      ctx.closePath();
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+
+    function updateBullets() {
+      bullets.forEach((b, i) => {
+        b.y -= b.speed;
+        ctx.fillStyle = '#fff';
+        ctx.shadowColor = '#fff';
+        ctx.shadowBlur = 10;
+        ctx.fillRect(b.x, b.y, 5, 10);
+        ctx.shadowBlur = 0;
+        enemies.forEach((e, j) => {
+          if (b.x < e.x + e.size && b.x + 5 > e.x && b.y < e.y + e.size && b.y + 10 > e.y) {
+            bullets.splice(i, 1);
+            enemies.splice(j, 1);
+            score += 10;
+            enemiesKilled++;
+            if (enemiesKilled >= 20) {
+              wallet += 200;
+              localStorage.setItem('bcpWallet', wallet);
+              enemiesKilled = 0;
+              showCoinBonus();
+            }
+            updateHUD();
+          }
+        });
+        if (b.y < 0) bullets.splice(i, 1);
+      });
+    }
+
+    function updateEnemies() {
+      enemies.forEach((e, i) => {
+        e.y += e.speed;
+        const gradient = ctx.createLinearGradient(e.x, e.y, e.x + e.size, e.y + e.size);
+        gradient.addColorStop(0, '#ff1744');
+        gradient.addColorStop(1, '#b71c1c');
+        ctx.fillStyle = gradient;
+        ctx.shadowColor = '#ff1744';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(e.x + e.size / 2, e.y + e.size / 2, e.size / 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        if (e.y > canvas.height) enemies.splice(i, 1);
+        if (
+          e.x + e.size > player.x &&
+          e.x < player.x + player.width &&
+          e.y + e.size > player.y &&
+          e.y < player.y + player.height
+        ) {
+          lives--;
+          enemies.splice(i, 1);
+          player.isHit = true;
+          player.hitEffectDuration = 500; // 500ms duration
+          showLifeLost();
+          if (lives <= 0) endGame();
+          updateHUD();
+        }
+      });
+    }
+
+    function updateCoins() {
+      coins.forEach((c, i) => {
+        c.y += 2;
+        ctx.shadowColor = '#ffd700';
+        ctx.shadowBlur = 10;
+        ctx.drawImage(coinImage, c.x, c.y, 20, 20);
+        ctx.shadowBlur = 0;
+        if (
+          c.x + 20 > player.x &&
+          c.x < player.x + player.width &&
+          c.y + 20 > player.y &&
+          c.y < player.y + player.height
+        ) {
+          coins.splice(i, 1);
+          wallet++;
+          localStorage.setItem('bcpWallet', wallet);
+          if (soundOn) {
+            coinSound.currentTime = 0;
+            coinSound.play().catch(() => {});
+          }
+          updateHUD();
+        }
+        if (c.y > canvas.height) coins.splice(i, 1);
+      });
+    }
+
+    function updateLives() {
+      livesItems.forEach((l, i) => {
+        l.y += 2;
+        ctx.shadowColor = '#00ff00';
+        ctx.shadowBlur = 10;
+        ctx.drawImage(lifeImage, l.x, l.y, 20, 20);
+        ctx.shadowBlur = 0;
+        if (
+          l.x + 20 > player.x &&
+          l.x < player.x + player.width &&
+          l.y + 20 > player.y &&
+          l.y < player.y + player.height
+        ) {
+          livesItems.splice(i, 1);
+          lives++;
+          if (soundOn) {
+            lifeSound.currentTime = 0;
+            lifeSound.play().catch(() => {});
+          }
+          showLifeGained();
+          updateHUD();
+        }
+        if (l.y > canvas.height) livesItems.splice(i, 1);
+      });
+    }
+
+    function updateHUD() {
+      coinCounter.textContent = wallet;
+      scoreDisplay.textContent = score;
+      levelDisplay.textContent = level;
+      livesDisplay.textContent = lives;
+      finalScoreDisplay.textContent = score;
+      finalWalletDisplay.textContent = wallet;
+    }
+
+    function checkLevelUp() {
+      if (score >= level * 100) {
+        level++;
+        showLevelUp();
+        updateHUD();
+      }
+    }
+
+    function endGame() {
+      cancelAnimationFrame(animationId);
+      gameOverScreen.style.display = 'flex';
+      if (score > highScore) {
+        highScore = score;
+        localStorage.setItem('highScore', highScore);
+      }
+      highScoreDisplay.textContent = highScore;
+      finalScoreDisplay.textContent = score;
+      finalWalletDisplay.textContent = wallet;
+    }
+    // --- Loader ---
+    window.addEventListener('DOMContentLoaded', function() {
+      document.body.classList.add('overflow-hidden');
+    });
+    window.addEventListener('load', function() {
+      setTimeout(function() {
+        const loader = document.getElementById('flash-loader');
+        if(loader) loader.classList.add('hide');
+        document.body.classList.remove('overflow-hidden');
+      }, 1200);
+    });
+    function scrollToTop() {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // --- Image fade ---
+    const fadeImages = document.querySelectorAll('#bcplus-image-fade-section img');
+    let fadeIdx = 0;
+    setInterval(() => {
+      fadeImages[fadeIdx].classList.remove('active');
+      fadeIdx = (fadeIdx + 1) % fadeImages.length;
+      fadeImages[fadeIdx].classList.add('active');
+    }, 3000);
+    setInterval(spawnCoin, 3000);
+    setInterval(spawnLife, 10000);
+    setInterval(shoot, 500);
+    // Start enemy spawning
+    spawnEnemyWave();
+  </script>
+</body>
+</html>
